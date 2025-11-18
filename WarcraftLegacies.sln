@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WarcraftLegacies.Shared", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MacroTools.Shared", "src\MacroTools.Shared\MacroTools.Shared.csproj", "{C56793DB-A403-44D1-9797-0D1E06246108}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WarcraftLegacies.Tests", "test\WarcraftLegacies.Tests\WarcraftLegacies.Tests.csproj", "{A04EFD28-33A5-4E5A-9BF6-C1A9F9A6B3B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +63,10 @@ Global
 		{C56793DB-A403-44D1-9797-0D1E06246108}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C56793DB-A403-44D1-9797-0D1E06246108}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C56793DB-A403-44D1-9797-0D1E06246108}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A04EFD28-33A5-4E5A-9BF6-C1A9F9A6B3B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A04EFD28-33A5-4E5A-9BF6-C1A9F9A6B3B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A04EFD28-33A5-4E5A-9BF6-C1A9F9A6B3B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A04EFD28-33A5-4E5A-9BF6-C1A9F9A6B3B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -77,5 +83,6 @@ Global
 		{6BA878CD-A97E-44A5-B243-CE30FDE2E357} = {7E0407DE-0070-46E2-93C6-C9C662276392}
 		{A3319E1F-A91C-44CA-83AC-857F439E5825} = {626B90E8-C679-4658-88F5-2EDE97F940DE}
 		{C56793DB-A403-44D1-9797-0D1E06246108} = {626B90E8-C679-4658-88F5-2EDE97F940DE}
+		{A04EFD28-33A5-4E5A-9BF6-C1A9F9A6B3B3} = {7E0407DE-0070-46E2-93C6-C9C662276392}
 	EndGlobalSection
 EndGlobal
