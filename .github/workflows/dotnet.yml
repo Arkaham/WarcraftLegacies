@@ -1,46 +1,149 @@
-name: .NET
+name: .NET CI
 
 on:
-    push:
-        branches: [ main, dev ]
-    pull_request:
-        branches: [ main, dev ]
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
 
 jobs:
-    Developer-CI:
-        runs-on: ubuntu-latest
-        steps:
-            -   uses: actions/checkout@v3
-            -   name: Setup .NET
-                uses: actions/setup-dotnet@v1
-                with:
-                    dotnet-version: 9.0.x
-            -   name: Run .NET Format
-                run: dotnet format --verify-no-changes --verbosity detailed --exclude src/War3Api.Object src/WarcraftLegacies.Shared/Constants.cs src/WarcraftLegacies.Source/Regions.cs
-            -   name: Build
-                run: dotnet build
-            -   name: Inspect code
-                uses: muno92/resharper_inspectcode@1.11.14
-                with:
-                    solutionPath: ./WarcraftLegacies.sln
-                    minimumSeverity: error
-                    failOnIssue: 1
-                    include: |
-                        ./src/MacroTools/**
-                        ./src/WarcraftLegacies.Source/**
-                        ./src/Launcher/**
-                        ./src/TestMap/**
-                    solutionWideAnalysis: false
-                    
-    Integrity-Check:
-        runs-on: windows-latest
-        steps:
-            -   uses: actions/checkout@v3
-            -   name: Setup .NET
-                uses: actions/setup-dotnet@v1
-                with:
-                    dotnet-version: 9.0.x
-            -   name: Build
-                run: dotnet build
-            -   name: Test
-                run: dotnet test
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Check code formatting
+        run: dotnet format --verify-no-changes --verbosity detailed --exclude src/War3Api.Object src/WarcraftLegacies.Shared/Constants.cs src/WarcraftLegacies.Source/Regions.cs
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: ReSharper code inspection
+        uses: muno92/resharper_inspectcode@1.11.14
+        with:
+          solutionPath: ./WarcraftLegacies.sln
+          minimumSeverity: error
+          failOnIssue: 1
+          include: |
+            ./src/MacroTools/**
+            ./src/WarcraftLegacies.Source/**
+            ./src/Launcher/**
+            ./src/TestMap/**
+          solutionWideAnalysis: false
+
+  build-and-test:
+    name: Build and Test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          cache: true
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test with coverage
+        run: dotnet test --no-build --configuration Release --collect:"XPlat Code Coverage" --results-directory ./coverage --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action/windows@v2
+        if: always()
+        with:
+          files: '**/test-results.trx'
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ./coverage
+          fail_ci_if_error: false
+
+  build-map:
+    name: Build Map
+    needs: [code-quality, build-and-test]
+    runs-on: windows-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build solution
+        run: dotnet build --configuration Release
+
+      - name: Build map
+        run: |
+          cd src/Launcher
+          dotnet run --configuration Release
+
+      - name: Generate version
+        id: version
+        run: |
+          $version = (Get-Date -Format "yyyy.MM.dd") + ".${{ github.run_number }}"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Upload map artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: warcraft-map-${{ steps.version.outputs.version }}
+          path: output/*.w3x
+          retention-days: 90
+
+  notify-on-failure:
+    name: Notify on Failure
+    needs: [code-quality, build-and-test, build-map]
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name != 'pull_request'
+
+    steps:
+      - name: Send failure email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "❌ Build Failed - ${{ github.repository }} (${{ github.ref_name }})"
+          to: ${{ github.event.pusher.email }}
+          from: WarcraftLegacies CI
+          html_body: |
+            <h2>Build Failed</h2>
+            <p><strong>Repository:</strong> ${{ github.repository }}</p>
+            <p><strong>Branch:</strong> ${{ github.ref_name }}</p>
+            <p><strong>Commit:</strong> ${{ github.sha }}</p>
+            <p><strong>Author:</strong> ${{ github.actor }}</p>
+            <p><strong>Message:</strong> ${{ github.event.head_commit.message }}</p>
+            <p><strong>Job Results:</strong></p>
+            <ul>
+              <li>Code Quality: ${{ needs.code-quality.result }}</li>
+              <li>Build and Test: ${{ needs.build-and-test.result }}</li>
+              <li>Build Map: ${{ needs.build-map.result }}</li>
+            </ul>
+            <p><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View full build log</a></p>
